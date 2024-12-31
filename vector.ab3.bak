@@ -1,0 +1,484 @@
+; XTRA
+; Embedded .xtra Header
+; 
+; General Info
+; -------------------------------------------------------
+; ExePath         = "ram:"
+; ExeFile         = "Empty"
+; CreateIcon      = 0
+; Residents       = "all.res"
+; 
+; Compiler
+; -------------------------------------------------------
+; StringBuffer    = 100000
+; MakeSmallest    = 0
+; FuncOptimize    = 1
+; Version         = 0.0.0
+; NumberOfBuilds  = 1042
+; 
+; Debugger
+; -------------------------------------------------------
+; CliArgs         = ""
+; StackSize       = 8192
+; RuntimeDebug    = 1
+; DebugInfo       = 0
+; CreateDbgFile   = 0
+; OverflowCheck   = 0
+; AssemblerCheck  = 0
+; InterruptCheck  = 1
+; AutoRun         = 1
+; 
+; Editor
+; -------------------------------------------------------
+; CursorLine      = 390
+; CursorColumn    = 70
+; LabelSearch     = ""
+; LabelRemark     = 0
+; LabelAll        = 0
+; LabelCase       = 0
+; LabelPosition   = 0
+; 
+; Blitz Objects
+; -------------------------------------------------------
+; Max File        = 100
+; Max GadgetList  = 100
+; Max Shape       = 200
+; Max Bank        = 1
+; Max MenuList    = 100
+; Max GTList      = 100
+; Max Palette     = 4
+; Max BitMap      = 10
+; Max Screen      = 5
+; Max IntuiFont   = 10
+; Max BlitzFont   = 1
+; Max Window      = 100
+; Max IconInfo    = 1
+; Max MUIObject   = 50
+; Max AsyncReq    = 4
+; Max Req-Lib     = 5
+; Max GTMenuList  = 100
+; Max Console     = 5
+; Max TCPSock     = 5
+; Max Tape        = 5
+; Max TagList     = 5
+; Max Database    = 16
+; Max Sound       = 10
+; Max MedModule   = 8
+; Max Buffer      = 10
+; Max Queue       = 10
+; Max Sprite      = 20
+; Max Module      = 5
+; Max Slice       = 10
+; Max Page        = 4
+; Max CopList     = 10
+; Max PTModule    = 5
+; Max Anim        = 10
+; Max NChunky     = 50
+; Max Chunky      = 20
+; Max Stencil     = 5
+; Max XBSound     = 10
+; /XTRA
+WBStartup
+
+BitMap 0,320,245,4
+BitMap 1,320,245,4
+
+;LoadShape 0,"amiga:vector/prism.bsh"
+
+NoCli
+
+VWait 20
+
+BLITZ
+
+#STEPS = 720
+
+Dim single.f(#STEPS)
+Dim cosgle.f(#STEPS)
+Dim tangle.f(#STEPS)
+For x = 0 To #STEPS - 1
+  single(x) = Sin(x / (#STEPS * 0.5) * Pi)
+  cosgle(x) = Cos(x / (#STEPS * 0.5) * Pi)
+  tangle(x) = Tan(x / (#STEPS * 0.5) * Pi)
+Next
+
+
+InitCopList 0,44,220,$10004,0,16, - 8
+InitPalette 0,16
+
+AGAPalRGB 0,0,0,20,50
+
+For c = 1 To 3
+AGAPalRGB 0,c,0, 10 + c * 20,30 + c * 60
+Next
+
+CreateDisplay 0
+DisplayPalette 0,0
+DisplayRGB 0,0,0,0,20,50
+DisplayRGB 0,0,100,0,30,70
+DisplayRGB 0,0,210,0,0,0
+DisplayBitMap 0,0
+
+Use BitMap 0
+bitm.b = 1
+
+
+NEWTYPE.p3d
+ x.f
+ y.f
+ z.f
+
+ px.f
+ py.f
+ pz.f
+
+ rx.f
+ ry.f
+ rz.f
+
+End NEWTYPE
+
+NEWTYPE.s3d
+  px.f
+  py.f
+  pz.f
+End NEWTYPE
+
+Dim points.p3d(8)
+Dim shadows.p3d(8,3)
+Dim * sortedTri.p3d(3)
+
+
+points(0)\x = -0.5,    0.5,  - 0.5
+points(1)\x = -0.5 , - 0.5 , - 0.5
+points(2)\x =  0.5,  - 0.5,  - 0.5
+points(3)\x =  0.5,    0.5,  - 0.5
+points(4)\x =  0.5,    0.5,    0.5
+points(5)\x =  0.5,  - 0.5,    0.5
+points(6)\x = -0.5,  - 0.5,    0.5
+points(7)\x = -0.5,    0.5,    0.5
+
+
+; aspect/ratio is height by width
+a.f = 245.0/320.0
+z_far.f = 100
+z_near.f = 20
+
+fov_angle.f = 120
+
+f.f = 1/tangle(fov_angle/2)
+q.f = z_far / (z_far - z_near)
+
+af.f = a * f
+
+qoff.f = z_near*q
+
+Statement Project{*vert.p3d}
+  SHARED a,f,q,qoff
+
+  * vert\px = af * *vert\rx
+  * vert\py = f * *vert\ry
+  * vert\pz = ( * vert\rz * q) - qoff
+  oz.f = *vert\rz
+
+  If NOT oz =  0.0
+    ox.f = *vert\rx / oz
+    oy.f = *vert\ry / oz
+  Else
+    ox.f = 0
+    oy.f = 0
+  EndIf
+
+  * vert\px = ox
+  * vert\py = oy
+  * vert\pz = oz
+End Statement
+
+Statement ScaleVector{factor.f, * vert.p3d}
+  ox = *vert\px
+  oy = *vert\py
+
+  * vert\px = ox * 160
+  * vert\py = oy * 160
+End Statement
+
+Statement RotateZ{angle.w, * vert.p3d}
+  SHARED cosgle(), single()
+  ox = *vert\rx
+  oy = *vert\ry
+  c.f = cosgle(angle)
+  s.f = single(angle)
+  * vert\rx = ox * c + oy * s
+  * vert\ry = ox * -s + oy * c
+End Statement
+
+Statement RotateX{angle.w, * vert.p3d}
+  SHARED cosgle(), single()
+
+  oy.f = *vert\ry
+  oz.f = *vert\rz
+  c.f = cosgle(angle)
+  s.f = single(angle)
+  * vert\ry = oy *  c + oz * s
+  * vert\rz = oy * -s + oz * c
+
+End Statement
+
+Statement RotateY{angle.w, * vert.p3d}
+  SHARED cosgle(), single()
+
+  ox.f = *vert\rx
+  oz.f = *vert\rz
+
+  c.f = cosgle(angle)
+  s.f = single(angle)
+
+  * vert\rx = ox * c - *vert\rz * s
+  * vert\rz = ox * s + *vert\rz * c
+
+End Statement
+
+Statement Rotate3D{angleX.w, angleY.w, angleZ.w, * vert.p3d}
+SHARED cosgle(), single()
+
+  * vert\rx = *vert\x
+  * vert\ry = *vert\y
+  * vert\rz = *vert\z
+
+  RotateX{angleX, * vert}
+  RotateY{angleY, * vert}
+  RotateZ{angleZ, * vert}
+End Statement
+
+Statement Transform{x.f, y.f, z.f, * vert.p3d}
+  ;* vert\rx = *vert\rx + x
+  ;* vert\ry = *vert\ry + y
+  * vert\rz = *vert\rz + z
+End Statement
+
+
+Statement DrawTriangle{ * p1.p3d, * p2.p3d, * p3.p3d, color, mode}
+  SHARED * sortedTri()
+
+  ;nz  =  (( * p1\rx) * ( * p2\ry)) - (( * p1\ry ) * ( * p2\rx))
+
+  a.p3d\x = *p2\rx -  *p1\rx
+  a.p3d\y = *p2\ry -  *p1\ry
+  a.p3d\z = *p2\rz -  *p1\rz
+
+
+  b.p3d\x = *p3\rx -  *p1\rx
+  b.p3d\y = *p3\ry -  *p1\ry
+  b.p3d\z = *p3\rz -  *p1\rz
+
+  nz = a\x * b\y - a\y * b\x
+
+
+px1.w = Int( * p1\px + 230)
+px2.w = Int( * p2\px + 230)
+px3.w = Int( * p3\px + 230)
+
+
+py1.w = Int( * p1\py + 100)
+py2.w = Int( * p2\py + 100)
+py3.w = Int( * p3\py + 100)
+
+If mode = 0
+    Line px1 ,py1 ,px2 ,py2 ,color
+    Line px2 ,py2 ,px3 ,py3 ,color
+    ;Line px3 ,py3 ,px1 ,py1 ,color
+End If
+
+If mode = 1
+  If nz > 0.16
+    Line px1 ,py1 ,px2 ,py2 ,color
+    Line px2 ,py2 ,px3 ,py3 ,color
+    ;Line px3 ,py3 ,px1 ,py1 ,color
+  EndIf
+  Statement Return
+
+EndIf
+
+If mode = 2
+  If nz > 0.16
+
+    ; we need to sort the points for y so we can draw only horizontal lines
+    * sortedTri(0) = *p1
+    * sortedTri(1) = *p2
+    * sortedTri(2) = *p3
+
+    For j = 0 To 1
+      For i = 1 To 2
+        If * sortedTri(i - 1)\py > *sortedTri(i)\py
+          * interm.p3d = *sortedTri(i)
+          * sortedTri(i) = *sortedTri(i - 1)
+          * sortedTri(i - 1) = *interm
+        EndIf
+      Next
+    Next
+
+    xStart =  * sortedTri(0)\px
+    yStart =  * sortedTri(0)\py
+
+    ; there is a top triangle and a lower triangle of horizontal lines
+    yLinesTop =  * sortedTri(1)\py - *sortedTri(0)\py
+    yLinesAll =  * sortedTri(2)\py - *sortedTri(0)\py
+
+    ; with every line down we need to change the start and end of the line by
+    ; these factors
+
+    xFactLeft.f = ( * sortedTri(1)\px - *sortedTri(0)\px) / yLinesTop
+    xFactRight.f = ( * sortedTri(2)\px - *sortedTri(0)\px) / yLinesAll
+
+    ; draw the top triangle between p0 and p1
+    y = yStart + 100
+    xStartLeft.f = xStart + 230
+    xStartRight.f = xStart  + 230
+
+    For yl  = 0 To yLinesTop
+      Line xStartLeft ,y , xStartRight ,y ,color
+      xStartRight = xStartRight + xFactRight
+      xStartLeft  = xStartLeft + xFactLeft
+      y = y + 1
+    Next
+
+    ; xFactLeft needs to change here. It is now the difference between  3 and 2
+
+    yLinesBottom = Int(yLinesAll - yLinesTop)
+    If yLinesBottom = 0
+      Statement Return
+    EndIf
+
+    xFactLeft.f = ( * sortedTri(2)\px - *sortedTri(1)\px) / (yLinesBottom)
+    xStartNew =  * sortedTri(1)\px  + 230
+    yStart = Int(yStart + yLinesTop) + 100
+
+    rightX = Int(xStartRight)
+    ;If xFactRight<0 Then color = color +1
+    For yl = 0 To yLinesBottom
+      y = yStart + yl
+      Line xStartNew  ,y , rightX   ,y ,color
+      xStartNew = xStartNew + xFactLeft
+      rightX = rightX + xFactRight
+    Next
+
+
+    EndIf
+EndIf
+
+End Statement
+
+DEFTYPE.p3d rotated
+
+angleX.w = 0
+angleY.w = 60
+angleZ.w = 120
+
+angleTZ = 0
+angleTX = 0
+
+mode = 0
+mc = 0
+
+mode = 2
+
+While Joyb(0)=0
+
+  ;mc = mc + 1
+  ;If mc = 300
+  ;  mc = 0
+  ;  mode = mode + 1
+  ;  If mode = 3 Then mode = 0
+  ;EndIf
+
+  DisplayBitMap 0,bitm
+  bitm = 1-bitm
+  Use BitMap bitm
+  BitMapOutput bitm
+
+  Cls
+  startpos = VPos
+
+  ; transform angles to position the cube
+
+  angleTX = angleTX + 1
+  angleTY = angleTY + 2
+  angleTZ = angleTZ + 3
+
+  If angleTX > = #STEPS Then angleTX = angleTX MOD #STEPS
+  If angleTY > = #STEPS Then angleTY = angleTY MOD #STEPS
+  If angleTZ > = #STEPS Then angleTZ = angleTZ MOD #STEPS
+  angleX = angleX + single (angleTX) * 8
+  angleY = angleY + cosgle(angleTY) * 3
+  angleZ = angleZ - single(angleTZ) * 7
+
+  If angleX > = #STEPS Then angleX = angleX MOD #STEPS
+  If angleY > = #STEPS Then angleY = angleY MOD #STEPS
+  If angleZ > = #STEPS Then angleZ = angleZ MOD #STEPS
+
+  If angleX < 0 Then angleX = #STEPS + angleX
+  If angleY < 0 Then angleY = #STEPS + angleY
+  If angleZ < 0 Then angleZ = #STEPS + angleZ
+  For p=0 To 7
+    Rotate3D{angleX,angleY, angleZ,  points(p)}
+    Transform{0,0, 3, & points(p)}
+    Project{ & points(p)}
+    ScaleVector{3, & points(p)}
+
+    ;shadows(p,2)\px = shadows(p,1)\px
+    ;shadows(p,2)\py = shadows(p,1)\py
+    ;shadows(p,2)\pz = shadows(p,1)\pz
+
+    ;shadows(p,2)\rx = shadows(p,1)\rx
+    ;shadows(p,2)\ry = shadows(p,1)\ry
+    ;shadows(p,2)\rz = shadows(p,1)\rz
+
+    ;shadows(p,1)\px = shadows(p,0)\px
+    ;shadows(p,1)\py = shadows(p,0)\py
+    ;shadows(p,1)\pz = shadows(p,0)\pz
+
+    ;shadows(p,1)\rx = shadows(p,0)\rx
+    ;shadows(p,1)\ry = shadows(p,0)\ry
+    ;shadows(p,1)\rz = shadows(p,0)\rz
+
+    shadows(p,0)\px = points(p)\px
+    shadows(p,0)\py = points(p)\py
+    shadows(p,0)\pz = points(p)\pz
+
+    shadows(p,0)\rx = points(p)\rx
+    shadows(p,0)\ry = points(p)\ry
+    shadows(p,0)\rz = points(p)\rz
+
+  Next
+  s = 0
+  DrawTriangle{ & points(0), & points(1), & points(2),3,mode}
+  DrawTriangle{ & points(2), & points(3), & points(0),3,mode}
+
+  DrawTriangle{ & shadows(7,s), & shadows(0,s), & shadows(3,s),2,mode }
+  DrawTriangle{ & shadows(3,s), & shadows(4,s), & shadows(7,s),2,mode }
+
+  DrawTriangle{ & shadows(4,s), & shadows(5,s), & shadows(6,s),3,mode }
+  DrawTriangle{ & shadows(6,s), & shadows(7,s), & shadows(4,s),3,mode }
+
+  DrawTriangle{ & shadows(1,s), & shadows(6,s), & shadows(5,s),2,mode }
+  DrawTriangle{ & shadows(5,s), & shadows(2,s), & shadows(1,s),2,mode }
+
+  DrawTriangle{ & shadows(7,s), & shadows(6,s), & shadows(1,s),1,mode }
+  DrawTriangle{ & shadows(1,s), & shadows(0,s), & shadows(7,s),1,mode }
+
+  DrawTriangle{ & shadows(3,s), & shadows(2,s), & shadows(5,s),1,mode }
+  DrawTriangle{ & shadows(5,s), & shadows(4,s), & shadows(3,s),1,mode }
+
+Line 20,99,140,99,1
+Line 20,100,140,100,1
+
+;Blit 0, 0 ,200
+
+    endpos = VPos
+    Colour 3
+    Locate 1,5
+    Print Str$(endpos - startpos)
+    VWait
+Wend
+End
+
